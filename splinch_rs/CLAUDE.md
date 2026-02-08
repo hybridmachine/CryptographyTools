@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Run tests:** `cargo test`
 - **Lint:** `cargo clippy`
 - **Format:** `cargo fmt`
+- **Build .deb package:** `cargo deb`
+- **Preview man page:** `man target/debug/build/splinch_rs-*/out/splinch-rs.1`
 
 No tests exist yet. The project uses Rust 2024 edition.
 
