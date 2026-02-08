@@ -5,6 +5,7 @@ use clap::{Arg, Command};
 fn build_cli() -> Command {
     // NOTE: Keep this in sync with the Cli struct in src/main.rs
     Command::new("splinch-rs")
+        .version(env!("CARGO_PKG_VERSION"))
         .about("Split a file into two XOR-complementary parts for secure transport, or combine them back")
         .arg(
             Arg::new("input")

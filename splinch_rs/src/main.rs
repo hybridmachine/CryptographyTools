@@ -6,7 +6,7 @@ use clap::Parser;
 use splinch_rs::{combine_files, split_file, verify_files};
 
 #[derive(Parser)]
-#[command(about = "Split a file into two XOR-complementary parts for secure transport, or combine them back")]
+#[command(version, about = "Split a file into two XOR-complementary parts for secure transport, or combine them back")]
 struct Cli {
     /// Path to the input file to split or a .xor1/.xor2 file to combine
     #[arg(short = 'i', long = "input")]
