@@ -4,7 +4,7 @@ use clap::{Arg, Command};
 
 fn build_cli() -> Command {
     // NOTE: Keep this in sync with the Cli struct in src/main.rs
-    Command::new("splinch-rs")
+    Command::new("splinch")
         .version(env!("CARGO_PKG_VERSION"))
         .about("Split a file into two XOR-complementary parts for secure transport, or combine them back")
         .arg(
@@ -38,21 +38,21 @@ fn custom_troff_sections() -> &'static str {
 Split a file into two XOR-complementary parts:
 .RS 4
 .nf
-splinch\-rs \-i secret.pdf
+splinch \-i secret.pdf
 .fi
 .RE
 .PP
 Split a file and verify the output:
 .RS 4
 .nf
-splinch\-rs \-i secret.pdf \-v
+splinch \-i secret.pdf \-v
 .fi
 .RE
 .PP
 Combine two parts back into the original:
 .RS 4
 .nf
-splinch\-rs \-i secret.pdf.xor1 \-c
+splinch \-i secret.pdf.xor1 \-c
 .fi
 .RE
 .SH EXIT STATUS
@@ -74,7 +74,7 @@ If the output filename already exists, a numeric suffix is inserted
 (e.g., \fIsecret.1.pdf\fR) to avoid overwriting.
 .SH SECURITY CONSIDERATIONS
 .PP
-\fBsplinch\-rs\fR implements one-time pad (OTP) file splitting. Each output
+\fBsplinch\fR implements one-time pad (OTP) file splitting. Each output
 file is statistically indistinguishable from random data. Neither file alone
 reveals any information about the original.
 .PP
@@ -107,7 +107,7 @@ fn main() {
     buf.write_all(custom_troff_sections().as_bytes())
         .expect("failed to append custom sections");
 
-    let out_path = std::path::Path::new(&out_dir).join("splinch-rs.1");
+    let out_path = std::path::Path::new(&out_dir).join("splinch.1");
     std::fs::write(&out_path, buf).expect("failed to write man page");
 
     println!("cargo:rerun-if-changed=src/main.rs");

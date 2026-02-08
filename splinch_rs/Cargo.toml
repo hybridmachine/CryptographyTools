@@ -6,6 +6,10 @@ authors = ["Brian Tabone"]
 description = "Split a file into two XOR-complementary parts for secure transport, or combine them back"
 license = "MIT"
 
+[[bin]]
+name = "splinch"
+path = "src/main.rs"
+
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 anyhow = "1.0"
@@ -16,11 +20,12 @@ clap = { version = "4.5", features = ["derive"] }
 clap_mangen = "0.2"
 
 [package.metadata.deb]
+name = "splinch"
 maintainer = "Brian Tabone"
 copyright = "2025, Brian Tabone"
 license-file = ["LICENSE", "0"]
 extended-description = """\
-splinch_rs splits any file into two XOR-complementary parts using a \
+splinch splits any file into two XOR-complementary parts using a \
 cryptographically random one-time pad. Neither output file alone reveals \
 any information about the original. XOR-ing the two files together \
 reconstructs the original exactly."""
@@ -28,7 +33,7 @@ depends = "$auto"
 section = "utils"
 priority = "optional"
 assets = [
-    ["target/release/splinch_rs", "usr/bin/splinch-rs", "755"],
-    ["target/release/build/splinch_rs-*/out/splinch-rs.1", "usr/share/man/man1/", "644"],
-    ["README.md", "usr/share/doc/splinch-rs/README.md", "644"],
+    ["target/release/splinch", "usr/bin/splinch", "755"],
+    ["target/release/build/splinch_rs-*/out/splinch.1", "usr/share/man/man1/", "644"],
+    ["README.md", "usr/share/doc/splinch/README.md", "644"],
 ]

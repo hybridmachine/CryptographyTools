@@ -9,14 +9,14 @@ Neither output file alone reveals any information about the original. XOR-ing th
 ### From .deb package (Ubuntu/Debian)
 
 ```bash
-sudo dpkg -i splinch-rs_0.1.0-1_amd64.deb
+sudo dpkg -i splinch_0.1.0-1_amd64.deb
 ```
 
 ### From source
 
 ```bash
 cargo build --release
-cp target/release/splinch_rs /usr/local/bin/splinch-rs
+cp target/release/splinch /usr/local/bin/splinch
 ```
 
 ## Usage
@@ -24,20 +24,20 @@ cp target/release/splinch_rs /usr/local/bin/splinch-rs
 Split a file:
 
 ```bash
-splinch-rs -i secret.pdf
+splinch -i secret.pdf
 # Creates: secret.pdf.xor1, secret.pdf.xor2
 ```
 
 Split and verify:
 
 ```bash
-splinch-rs -i secret.pdf -v
+splinch -i secret.pdf -v
 ```
 
 Combine two parts back into the original:
 
 ```bash
-splinch-rs -i secret.pdf.xor1 -c
+splinch -i secret.pdf.xor1 -c
 # Restores: secret.pdf
 ```
 
