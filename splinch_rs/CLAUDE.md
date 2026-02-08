@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Run Commands
 
 - **Build:** `cargo build`
-- **Run:** `cargo run -- -i <file> [-v]`
+- **Run (split):** `cargo run -- -i <file> [-v]`
+- **Run (combine):** `cargo run -- -i <file.xor1> -c`
 - **Release build:** `cargo build --release`
 - **Check (fast compile check):** `cargo check`
 - **Run tests:** `cargo test`
@@ -20,8 +21,8 @@ No tests exist yet. The project uses Rust 2024 edition.
 
 ### Two-file structure
 
-- **`src/lib.rs`** — Core logic: `split_file()`, `verify_files()`, and `xor_buffers()`. Splitting generates a random byte stream (xor1) and XORs it with the input to produce xor2. Verification has two strategies: full byte-by-byte comparison for files ≤10MB (`VERIFY_FULL_THRESHOLD`), and sampled verification (10 random 64KB chunks) for larger files.
-- **`src/main.rs`** — CLI layer using clap derive. Parses `-i`/`--input` and `-v`/`--verify` flags, calls into lib.
+- **`src/lib.rs`** — Core logic: `split_file()`, `verify_files()`, `combine_files()`, and `xor_buffers()`. Splitting generates a random byte stream (xor1) and XORs it with the input to produce xor2. Combining XORs the two parts back together to reconstruct the original. Verification has two strategies: full byte-by-byte comparison for files ≤10MB (`VERIFY_FULL_THRESHOLD`), and sampled verification (10 random 64KB chunks) for larger files.
+- **`src/main.rs`** — CLI layer using clap derive. Parses `-i`/`--input`, `-v`/`--verify`, and `-c`/`--combine` flags, calls into lib.
 
 ### Key constants (lib.rs)
 

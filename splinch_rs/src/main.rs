@@ -3,23 +3,25 @@ use std::process;
 
 use anyhow::{bail, Result};
 use clap::Parser;
-use splinch_rs::{split_file, verify_files};
+use splinch_rs::{combine_files, split_file, verify_files};
 
 #[derive(Parser)]
-#[command(about = "Split a file into two XOR-complementary parts for secure transport")]
+#[command(about = "Split a file into two XOR-complementary parts for secure transport, or combine them back")]
 struct Cli {
-    /// Path to the input file to split
+    /// Path to the input file to split or a .xor1/.xor2 file to combine
     #[arg(short = 'i', long = "input")]
     input: PathBuf,
 
     /// Verify the split files against the original after splitting
     #[arg(short = 'v', long = "verify")]
     verify: bool,
+
+    /// Combine two XOR files back into the original
+    #[arg(short = 'c', long = "combine")]
+    combine: bool,
 }
 
-fn run() -> Result<()> {
-    let cli = Cli::parse();
-
+fn run_split(cli: &Cli) -> Result<()> {
     let metadata = std::fs::metadata(&cli.input);
     match &metadata {
         Ok(m) if !m.is_file() => bail!("{} is not a regular file", cli.input.display()),
@@ -50,6 +52,36 @@ fn run() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn run_combine(cli: &Cli) -> Result<()> {
+    if cli.verify {
+        bail!("--verify cannot be used with --combine");
+    }
+
+    let metadata = std::fs::metadata(&cli.input);
+    match &metadata {
+        Ok(m) if !m.is_file() => bail!("{} is not a regular file", cli.input.display()),
+        Err(e) => bail!("cannot access {}: {}", cli.input.display(), e),
+        _ => {}
+    }
+
+    println!("Combining from {}...", cli.input.display());
+
+    let output_path = combine_files(&cli.input)?;
+    println!("Restored: {}", output_path.display());
+
+    Ok(())
+}
+
+fn run() -> Result<()> {
+    let cli = Cli::parse();
+
+    if cli.combine {
+        run_combine(&cli)
+    } else {
+        run_split(&cli)
+    }
 }
 
 fn main() {

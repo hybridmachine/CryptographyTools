@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use rand::{RngCore, rng};
 
 const CHUNK_SIZE: usize = 64 * 1024;
@@ -219,4 +219,141 @@ fn append_extension(path: &Path, ext: &str) -> PathBuf {
     new_path.push(".");
     new_path.push(ext);
     PathBuf::from(new_path)
+}
+
+/// Combine two XOR-complementary files back into the original.
+///
+/// Given either the `.xor1` or `.xor2` file, auto-discovers the partner
+/// and XORs them together to reconstruct the original file.
+/// Returns the path of the output file.
+pub fn combine_files(input_path: &Path) -> Result<PathBuf> {
+    let (xor1_path, xor2_path) = resolve_xor_pair(input_path)?;
+
+    let xor1_size = std::fs::metadata(&xor1_path)
+        .with_context(|| format!("failed to read metadata for {}", xor1_path.display()))?
+        .len();
+    let xor2_size = std::fs::metadata(&xor2_path)
+        .with_context(|| format!("failed to read metadata for {}", xor2_path.display()))?
+        .len();
+
+    if xor1_size != xor2_size {
+        bail!(
+            "file sizes differ: {} is {} bytes, {} is {} bytes",
+            xor1_path.display(),
+            xor1_size,
+            xor2_path.display(),
+            xor2_size
+        );
+    }
+
+    let base_path = strip_xor_extension(&xor1_path)?;
+    let output_path = resolve_output_path(&base_path);
+
+    let mut xor1_reader = BufReader::new(
+        File::open(&xor1_path)
+            .with_context(|| format!("failed to open {}", xor1_path.display()))?,
+    );
+    let mut xor2_reader = BufReader::new(
+        File::open(&xor2_path)
+            .with_context(|| format!("failed to open {}", xor2_path.display()))?,
+    );
+
+    let out_file = File::create(&output_path)
+        .with_context(|| format!("failed to create {}", output_path.display()))?;
+    let mut writer = BufWriter::new(out_file);
+
+    let mut xor1_buf = vec![0u8; CHUNK_SIZE];
+    let mut xor2_buf = vec![0u8; CHUNK_SIZE];
+    let mut out_buf = vec![0u8; CHUNK_SIZE];
+
+    loop {
+        let n1 = read_exact_or_eof(&mut xor1_reader, &mut xor1_buf)?;
+        let n2 = read_exact_or_eof(&mut xor2_reader, &mut xor2_buf)?;
+
+        if n1 != n2 {
+            bail!("unexpected read size mismatch during combine");
+        }
+        if n1 == 0 {
+            break;
+        }
+
+        xor_buffers(&xor1_buf[..n1], &xor2_buf[..n1], &mut out_buf[..n1]);
+
+        writer
+            .write_all(&out_buf[..n1])
+            .context("failed to write to output file")?;
+    }
+
+    writer.flush().context("failed to flush output file")?;
+
+    Ok(output_path)
+}
+
+fn resolve_xor_pair(input_path: &Path) -> Result<(PathBuf, PathBuf)> {
+    let ext = input_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+
+    let (xor1_path, xor2_path) = match ext {
+        "xor1" => {
+            let xor2 = input_path.with_extension("xor2");
+            (input_path.to_path_buf(), xor2)
+        }
+        "xor2" => {
+            let xor1 = input_path.with_extension("xor1");
+            (xor1, input_path.to_path_buf())
+        }
+        _ => bail!(
+            "input file must have .xor1 or .xor2 extension, got: {}",
+            input_path.display()
+        ),
+    };
+
+    if !xor1_path.exists() {
+        bail!("partner file not found: {}", xor1_path.display());
+    }
+    if !xor2_path.exists() {
+        bail!("partner file not found: {}", xor2_path.display());
+    }
+
+    Ok((xor1_path, xor2_path))
+}
+
+fn strip_xor_extension(path: &Path) -> Result<PathBuf> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+
+    match ext {
+        "xor1" | "xor2" => Ok(path.with_extension("")),
+        _ => bail!(
+            "expected .xor1 or .xor2 extension, got: {}",
+            path.display()
+        ),
+    }
+}
+
+fn resolve_output_path(base_path: &Path) -> PathBuf {
+    if !base_path.exists() {
+        return base_path.to_path_buf();
+    }
+
+    let stem = base_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let extension = base_path.extension().and_then(|e| e.to_str());
+    let parent = base_path.parent().unwrap_or(Path::new(""));
+
+    let mut n = 1u32;
+    loop {
+        let filename = match extension {
+            Some(ext) => format!("{}.{}.{}", stem, n, ext),
+            None => format!("{}.{}", stem, n),
+        };
+        let candidate = parent.join(filename);
+        if !candidate.exists() {
+            return candidate;
+        }
+        n += 1;
+    }
 }
