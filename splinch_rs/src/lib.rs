@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use rand::{RngCore, rng};
 
 const CHUNK_SIZE: usize = 64 * 1024;
@@ -149,7 +149,11 @@ fn verify_sampled(original: &Path, xor1: &Path, xor2: &Path, file_size: u64) -> 
     offsets.insert(last_offset);
 
     // Generate 8 random interior offsets
-    let interior_range = if file_size > chunk { file_size - chunk } else { 0 };
+    let interior_range = if file_size > chunk {
+        file_size - chunk
+    } else {
+        0
+    };
     if interior_range > 0 {
         let mut r = rng();
         while offsets.len() < 10 {
@@ -321,17 +325,11 @@ fn resolve_xor_pair(input_path: &Path) -> Result<(PathBuf, PathBuf)> {
 }
 
 fn strip_xor_extension(path: &Path) -> Result<PathBuf> {
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
     match ext {
         "xor1" | "xor2" => Ok(path.with_extension("")),
-        _ => bail!(
-            "expected .xor1 or .xor2 extension, got: {}",
-            path.display()
-        ),
+        _ => bail!("expected .xor1 or .xor2 extension, got: {}", path.display()),
     }
 }
 
@@ -356,4 +354,45 @@ fn resolve_output_path(base_path: &Path) -> PathBuf {
         }
         n += 1;
     }
+}
+
+/// Securely delete a file by overwriting it with random bytes, then removing it.
+///
+/// Each pass overwrites the entire file with cryptographically random data
+/// and flushes to physical storage with `sync_all()`. After all passes,
+/// the file is removed from the filesystem.
+pub fn secure_delete(path: &Path, passes: u32) -> Result<()> {
+    let file_size = std::fs::metadata(path)
+        .with_context(|| format!("failed to read metadata for {}", path.display()))?
+        .len();
+
+    let mut file = OpenOptions::new()
+        .write(true)
+        .open(path)
+        .with_context(|| format!("failed to open {} for writing", path.display()))?;
+
+    let mut rand_buf = vec![0u8; CHUNK_SIZE];
+
+    for pass in 1..=passes {
+        file.seek(SeekFrom::Start(0))
+            .with_context(|| format!("failed to seek in {} (pass {})", path.display(), pass))?;
+
+        let mut remaining = file_size;
+        while remaining > 0 {
+            let to_write = remaining.min(CHUNK_SIZE as u64) as usize;
+            rng().fill_bytes(&mut rand_buf[..to_write]);
+            file.write_all(&rand_buf[..to_write]).with_context(|| {
+                format!("failed to overwrite {} (pass {})", path.display(), pass)
+            })?;
+            remaining -= to_write as u64;
+        }
+
+        file.sync_all()
+            .with_context(|| format!("failed to sync {} (pass {})", path.display(), pass))?;
+    }
+
+    drop(file);
+    std::fs::remove_file(path).with_context(|| format!("failed to remove {}", path.display()))?;
+
+    Ok(())
 }

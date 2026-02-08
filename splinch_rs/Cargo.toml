@@ -1,6 +1,6 @@
 [package]
 name = "splinch_rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["Brian Tabone"]
 description = "Split a file into two XOR-complementary parts for secure transport, or combine them back"

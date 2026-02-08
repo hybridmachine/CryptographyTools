@@ -29,6 +29,21 @@ fn build_cli() -> Command {
                 .help("Combine two XOR files back into the original")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            Arg::new("secure-delete")
+                .short('s')
+                .long("secure-delete")
+                .help("Securely delete the original file after splitting (overwrite with random data)")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("passes")
+                .short('p')
+                .long("passes")
+                .help("Number of overwrite passes for secure delete (default: 1)")
+                .default_value("1")
+                .value_name("N"),
+        )
 }
 
 fn custom_troff_sections() -> &'static str {
@@ -46,6 +61,13 @@ Split a file and verify the output:
 .RS 4
 .nf
 splinch \-i secret.pdf \-v
+.fi
+.RE
+.PP
+Split a file and securely delete the original (3 overwrite passes):
+.RS 4
+.nf
+splinch \-i secret.pdf \-s \-p 3
 .fi
 .RE
 .PP
@@ -85,6 +107,21 @@ security guarantee.
 For files larger than 10\ MB, the \fB\-v\fR flag uses sampled verification
 (10 random 64\ KB chunks) rather than a full byte-by-byte comparison.
 This is fast but not exhaustive.
+.PP
+The \fB\-s\fR (secure delete) option overwrites the original file with
+cryptographically random data before removing it. Each pass is flushed to
+physical storage with \fBfsync\fR(2). However:
+.IP \(bu 2
+On \fBcopy-on-write filesystems\fR (btrfs, ZFS), overwriting a file may write
+to new physical blocks, leaving old data intact. Use filesystem-level secure
+erase if available.
+.IP \(bu 2
+On \fBSSDs with wear leveling\fR, the controller may remap sectors, so old
+data could persist in unmapped blocks. Full-disk encryption is the recommended
+defense.
+.IP \(bu 2
+On traditional \fBext4/XFS on HDDs\fR, in-place overwrite with fsync is
+effective for destroying the original data.
 .SH SEE ALSO
 .BR xor (1),
 .BR split (1),
